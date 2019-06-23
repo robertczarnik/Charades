@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.control.ColorPicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollBar?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.shape.Rectangle?>
+<?import javafx.scene.text.Font?>
+
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="433.0" prefWidth="586.0" xmlns="http://javafx.com/javafx/8.0.121" xmlns:fx="http://javafx.com/fxml/1" fx:controller="sample.Controller">
+   <children>
+      <Canvas fx:id="canvas" height="369.0" layoutY="64.0" onMouseDragged="#onMouseDragged" onMousePressed="#onMousePressed" width="400.0" />
+      <ScrollPane layoutX="23.0" layoutY="155.0" prefHeight="236.0" prefWidth="279.0">
+         <content>
+            <TextArea prefHeight="253.0" prefWidth="260.0" />
+         </content></ScrollPane>
+      <Rectangle fill="#ffae00" height="88.0" layoutY="-24.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.0" width="563.0" />
+      <Rectangle fill="DODGERBLUE" height="441.0" layoutX="400.0" layoutY="-4.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.0" width="200.0" />
+      <ColorPicker fx:id="colorPicker" layoutX="333.0" layoutY="31.0" onAction="#onColorPicker" prefHeight="23.0" prefWidth="49.0" />
+      <ScrollBar layoutX="296.0" layoutY="5.0" prefHeight="18.0" prefWidth="87.0" />
+      <Label layoutX="319.0" layoutY="32.0" prefHeight="24.0" prefWidth="56.0" text="99">
+         <font>
+            <Font name="Times New Roman" size="21.0" />
+         </font></Label>
+   </children>
+</AnchorPane>
