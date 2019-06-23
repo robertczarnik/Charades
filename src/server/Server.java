@@ -3,6 +3,9 @@ package server;
 // It contains two classes : Server and ClientHandler
 // Save file as Server.java
 
+import sample.ColorRGB;
+import sample.Point;
+
 import java.io.*;
 import java.text.*;
 import java.util.*;
@@ -12,7 +15,7 @@ import java.util.concurrent.Executors;
 // Server class
 public class Server {
 
-    private static Set<DataOutputStream> clients = new HashSet<>();
+    private static Set<ObjectOutputStream> clients = new HashSet<>();
 
     public static void main(String[] args) throws IOException {
         System.out.println("The chat server is running...");
@@ -22,6 +25,7 @@ public class Server {
         try (var listener = new ServerSocket(5001)) {
             while (true) {
                 pool.execute(new ClientHandler(listener.accept()));
+
             }
         }
     }
@@ -29,8 +33,8 @@ public class Server {
 
     // ClientHandler class
     static class ClientHandler implements Runnable {
-        DataInputStream in;
-        DataOutputStream out;
+        ObjectInputStream in;
+        ObjectOutputStream out;
         final Socket socket;
 
 
@@ -42,21 +46,33 @@ public class Server {
         @Override
         public void run() {
             try {
-                this.in = new DataInputStream(socket.getInputStream());
-                this.out = new DataOutputStream(socket.getOutputStream());
+                System.out.println("nowy client!");
+                this.out = new ObjectOutputStream(socket.getOutputStream());
+                this.in = new ObjectInputStream(socket.getInputStream());
 
                 clients.add(out);
 
                 while (true) {
-                    String input = in.readUTF();
+                    Object input = in.readObject();
 
-                    for (var client : clients) {
-                        if(client!=out)
-                            client.writeUTF(input);
+                    if(input instanceof Point){
+                        for (var client : clients) {
+                            if (client != out){
+                                client.writeObject(input);
+                                client.flush();
+                            }
+                        }
+                    }else if(input instanceof ColorRGB){
+                        for (var client : clients) {
+                            if (client != out){
+                                client.writeObject(input);
+                                client.flush();
+                            }
+                        }
                     }
                 }
-            } catch (IOException e) {
-                System.out.println("BYE BYE");
+            } catch (IOException | ClassNotFoundException e) {
+                System.out.println("BYE BYE ");
             }finally {
                 if (out != null) {
                     clients.remove(out);

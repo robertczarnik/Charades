@@ -8,8 +8,8 @@ import java.net.*;
 public class Client
 {
 
-    private DataInputStream dis;
-    private DataOutputStream dos;
+    private ObjectInputStream in;
+    private ObjectOutputStream out;
     private Socket socket;
 
     public Client(String ip,int port)
@@ -19,8 +19,8 @@ public class Client
             socket = new Socket(ip, port);
 
             // obtaining input and out streams
-            dis = new DataInputStream(socket.getInputStream());
-            dos = new DataOutputStream(socket.getOutputStream());
+            out = new ObjectOutputStream(socket.getOutputStream());
+            in = new ObjectInputStream(socket.getInputStream());
 
 
         }catch(Exception e){
@@ -30,20 +30,20 @@ public class Client
 
     public void closeConnection(){
         try {
-            dis.close();
-            dos.close();
+            in.close();
+            out.close();
             socket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public DataInputStream getDis() {
-        return dis;
+    public ObjectInputStream getIn() {
+        return in;
     }
 
-    public DataOutputStream getDos() {
-        return dos;
+    public ObjectOutputStream getOut() {
+        return out;
     }
 
 }

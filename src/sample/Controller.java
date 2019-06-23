@@ -1,9 +1,12 @@
 package sample;
 
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.ColorPicker;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollBar;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.StrokeLineCap;
@@ -19,8 +22,16 @@ public class Controller implements Runnable{
     @FXML
     private ColorPicker colorPicker;
 
+    @FXML
+    private ScrollBar scrollBar;
 
-    private Client client ;
+    @FXML
+    private Label sizeLabel;
+
+    @FXML
+    private Label keyWordLabel;
+
+    private Client client;
     private GraphicsContext g;
 
     private double prevPosX=-1;
@@ -29,9 +40,10 @@ public class Controller implements Runnable{
     private double x;
     private double y;
 
-    private double size = 7;
+    private int size = 7;
     private Color color = Color.BLACK;
 
+    private boolean drawPermission = false;
 
     public void initialize(){
         colorPicker.setValue(Color.BLACK);
@@ -39,8 +51,19 @@ public class Controller implements Runnable{
     }
 
     @FXML
+    private void onBrushSizeChange(){
+        size = (int)scrollBar.getValue();
+        sizeLabel.setText(""+size);
+    }
+
+    @FXML
     private void onColorPicker(){
         color=colorPicker.getValue();
+        try {
+            client.getOut().writeObject(new ColorRGB(color)); // color
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void initClient(Client client) { //tylko raz mozna zainicjalizowac clienta
@@ -54,9 +77,6 @@ public class Controller implements Runnable{
         g.setStroke(color);
         g.setLineWidth(size);
         g.setLineCap(StrokeLineCap.ROUND);
-        //g.moveTo(prevPosX,prevPosY);
-        //g.lineTo(x,y);
-        //g.stroke();
         g.strokeLine(prevPosX,prevPosY,x,y);
         prevPosX=x;
         prevPosY=y;
@@ -77,7 +97,7 @@ public class Controller implements Runnable{
         drawLine(x,y);
 
         try {
-            client.getDos().writeUTF("l " + x + " " + y + " " + size); //line
+            client.getOut().writeObject(new Point(x,y,size,false)); //line
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -90,7 +110,7 @@ public class Controller implements Runnable{
         drawPoint(prevPosX,prevPosY);
 
         try {
-            client.getDos().writeUTF("p " + prevPosX + " " + prevPosY + " " + size); //prefix p means it is a point
+            client.getOut().writeObject(new Point(prevPosX,prevPosY,size,true)); // point
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -101,32 +121,40 @@ public class Controller implements Runnable{
         // the following loop performs the exchange of
         // information between client and client handler
 
-        String point;
-        String prefix;
-        String[] attributes;
+        Object obj;
+        Point point;
+
 
         while (true)
         {
             try {
 
-                point = client.getDis().readUTF(); //get point
-                attributes = point.split(" ");
-                prefix=attributes[0];
-                size=Double.parseDouble(attributes[3]);
+                obj = client.getIn().readObject(); //get object
 
-                if(prefix.equals("l")){
-                    x=Double.parseDouble(attributes[1]);
-                    y=Double.parseDouble(attributes[2]);
-                    drawLine(x,y);
-                }else{
-                    prevPosX=Double.parseDouble(attributes[1]);;
-                    prevPosY=Double.parseDouble(attributes[2]);;
-                    drawPoint(prevPosX,prevPosY);
+                if(obj instanceof Point){
+                    point = (Point)obj;
+                    size=point.getSize();
+                    //color=point.getColor();
+
+                    if(point.isSinglePoint()){
+                        prevPosX=point.getX();
+                        prevPosY=point.getY();
+                        drawPoint(prevPosX,prevPosY);
+                    }else{
+                        x=point.getX();
+                        y=point.getY();
+                        drawLine(x,y);
+                    }
+                }else if (obj instanceof ColorRGB){
+                    color = Color.rgb(((ColorRGB) obj).getR(),((ColorRGB) obj).getG(),((ColorRGB) obj).getB());
+                    //colorPicker.setValue(Color.RED);
                 }
 
-            } catch(IOException e) {
-                e.printStackTrace();
-                System.out.println("BYE");
+
+
+            } catch(IOException | ClassNotFoundException e) {
+                //e.printStackTrace();
+                //System.out.println("BYE");
             }
         }
     }
