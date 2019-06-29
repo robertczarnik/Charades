@@ -3,7 +3,9 @@
 <?import javafx.scene.canvas.Canvas?>
 <?import javafx.scene.control.ColorPicker?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.ScrollBar?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.shape.Rectangle?>
 <?import javafx.scene.text.Font?>
@@ -14,7 +16,6 @@
       <Rectangle fill="#ffae00" height="88.0" layoutY="-24.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.0" width="563.0" />
       <Rectangle fill="DODGERBLUE" height="441.0" layoutX="400.0" layoutY="-4.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.0" width="200.0" />
       <ColorPicker fx:id="colorPicker" layoutX="333.0" layoutY="31.0" onAction="#onColorPicker" prefHeight="23.0" prefWidth="49.0" />
-      <ScrollBar fx:id="scrollBar" layoutX="296.0" layoutY="5.0" max="99.0" min="1.0" onMouseClicked="#onBrushSizeChange" onMouseReleased="#onBrushSizeChange" onScroll="#onBrushSizeChange" prefHeight="18.0" prefWidth="87.0" value="8.0" />
       <Label fx:id="sizeLabel" layoutX="302.0" layoutY="31.0" prefHeight="24.0" prefWidth="56.0" text="8">
          <font>
             <Font name="Times New Roman" size="21.0" />
@@ -24,5 +25,8 @@
             <Font name="Times New Roman" size="17.0" />
          </font>
       </Label>
+      <Slider fx:id="slider" layoutX="295.0" layoutY="4.0" max="99.0" min="1.0" onDragDone="#onBrushSizeChange" onDragDropped="#onBrushSizeChange" onDragExited="#onBrushSizeChange" onMouseClicked="#onBrushSizeChange" onMouseReleased="#onBrushSizeChange" onScroll="#onBrushSizeChange" prefWidth="100.0" value="8.0" />
+      <TextField fx:id="textField" layoutX="413.0" layoutY="221.0" onAction="#onWordEnter" prefHeight="20.0" prefWidth="163.0" />
+      <TextArea fx:id="textArea" editable="false" layoutX="413.0" layoutY="21.0" prefHeight="200.0" prefWidth="163.0" />
    </children>
 </AnchorPane>

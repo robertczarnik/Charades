@@ -1,15 +1,16 @@
 package sample;
 
 import javafx.fxml.FXML;
-import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.ColorPicker;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollBar;
+import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.StrokeLineCap;
+import objects.ColorRGB;
+import objects.Guess;
+import objects.Message;
+import objects.Point;
 import server.Client;
 import java.io.IOException;
 
@@ -23,7 +24,7 @@ public class Controller implements Runnable{
     private ColorPicker colorPicker;
 
     @FXML
-    private ScrollBar scrollBar;
+    private Slider slider;
 
     @FXML
     private Label sizeLabel;
@@ -31,19 +32,28 @@ public class Controller implements Runnable{
     @FXML
     private Label keyWordLabel;
 
+    @FXML
+    private TextArea textArea;
+
+    @FXML
+    private TextField textField;
+
     private Client client;
     private GraphicsContext g;
 
+    //---Rysowanie---
     private double prevPosX=-1;
     private double prevPosY=-1;
-
     private double x;
     private double y;
-
     private int size = 7;
     private Color color = Color.BLACK;
+    //---
 
+    private boolean admin = false;
     private boolean drawPermission = false;
+    private Message msg;
+    private String guess;
 
     public void initialize(){
         colorPicker.setValue(Color.BLACK);
@@ -52,7 +62,7 @@ public class Controller implements Runnable{
 
     @FXML
     private void onBrushSizeChange(){
-        size = (int)scrollBar.getValue();
+        size = (int)slider.getValue();
         sizeLabel.setText(""+size);
     }
 
@@ -116,6 +126,19 @@ public class Controller implements Runnable{
         }
     }
 
+    @FXML
+    private void onWordEnter(){
+        String word = textField.getText() + "\n";
+        textField.setText("");
+        textArea.appendText(word);
+
+        try {
+            client.getOut().writeObject(new Guess(word));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void run() {
         // the following loop performs the exchange of
@@ -147,7 +170,17 @@ public class Controller implements Runnable{
                     }
                 }else if (obj instanceof ColorRGB){
                     color = Color.rgb(((ColorRGB) obj).getR(),((ColorRGB) obj).getG(),((ColorRGB) obj).getB());
-                    //colorPicker.setValue(Color.RED);
+                }else if (obj instanceof Message){
+                    msg = (Message)obj;
+
+                    if(msg.getMessageType().equals("ADMIN")){
+                        admin=msg.getMessage();
+                    }else if(msg.getMessageType().equals("DRAWER")){
+                        drawPermission=msg.getMessage();
+                    }
+                } else if(obj instanceof Guess){
+                    guess = ((Guess)obj).getGuess();
+                    textArea.appendText(guess);
                 }
 
 
