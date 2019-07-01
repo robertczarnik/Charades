@@ -1,8 +1,8 @@
 package server;
 // Java implementation of  Server side
 // It contains two classes : Server and ClientHandler
-// Save file as Server.java
 
+import collections.Pair;
 import objects.ColorRGB;
 import objects.Guess;
 import objects.Message;
@@ -11,13 +11,18 @@ import objects.Point;
 import java.io.*;
 import java.util.*;
 import java.net.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 
 // Server class
 public class Server {
 
-    private static Set<ObjectOutputStream> clients = new LinkedHashSet<>(); // set z kolejnoscia w jakies zostaly dodawane elementy
-    private static String secretWord = "";
+    private static Set<Pair<ObjectOutputStream,String>> clients = new LinkedHashSet<>(); //set z kolejnoscia w jakies zostaly dodawane elementy
+    private static String secretWord = "okon";
+    private static int queueNumber=1;
+    private static int time=10;
+    private static CopyOnWriteArrayList<Pair<String,Integer>> scoreborad = new CopyOnWriteArrayList<>();
+
 
 
     public static void main(String[] args) throws IOException {
@@ -40,6 +45,9 @@ public class Server {
         ObjectOutputStream out;
         final Socket socket;
         String response;
+        String msgType;
+        String msg;
+        String name;
         Guess msgResponse;
 
 
@@ -58,6 +66,57 @@ public class Server {
 
         }
 
+        private void broadcast(Object obj,ObjectOutputStream out) throws IOException {
+            for (var client : clients) {
+                if (client.getFirst() != out) {
+                    client.getFirst().writeObject(obj);
+                    client.getFirst().flush();
+                }
+            }
+        }
+
+        private void broadcastAll(Object obj) throws IOException {
+            for (var client : clients) {
+                client.getFirst().writeObject(obj);
+                client.getFirst().flush();
+            }
+        }
+
+        private void changeDrawer() throws IOException {
+            Iterator<Pair<ObjectOutputStream,String>> iterator = clients.iterator();
+
+            if(queueNumber>clients.size()) queueNumber=1;
+
+            int i=1;
+            while(iterator.hasNext()) {
+                Pair<ObjectOutputStream,String> setElement = iterator.next();
+                if(i==queueNumber) {
+                    ObjectOutputStream output = setElement.getFirst();
+                    broadcast(new Message("DRAWER","false,"+time),output);
+                    output.writeObject(new Message("DRAWER","true,"+time));
+                    output.flush();
+                    queueNumber++;
+                    break;
+                }
+                i++;
+            }
+
+        }
+
+        private void removePlayer(){
+            if (out != null) {
+                Iterator<Pair<ObjectOutputStream,String>> iterator = clients.iterator();
+
+                while(iterator.hasNext()) {
+                    Pair<ObjectOutputStream,String> setElement = iterator.next();
+                    if(setElement.getFirst()==out) {
+                        iterator.remove();
+                        break;
+                    }
+                }
+            }
+        }
+
         @Override
         public void run() {
             try {
@@ -66,10 +125,10 @@ public class Server {
                 this.in = new ObjectInputStream(socket.getInputStream());
 
                 if(clients.isEmpty()){ //ustanowienie 1 klienta jako admina stolika
-                    clients.add(out);
-                    out.writeObject(new Message("ADMIN",true));
+                    clients.add(new Pair<>(out,""));
+                    out.writeObject(new Message("ADMIN","true"));
                 }else{
-                    clients.add(out);
+                    clients.add(new Pair<>(out,""));
                 }
 
 
@@ -77,52 +136,50 @@ public class Server {
                     Object input = in.readObject();
 
                     if(input instanceof Guess){
-                        response = checkGuess(((Guess)input).getGuess());
-                        if(response.equals("OK")){
-                            msgResponse = new Guess(response);
+                        String guess = ((Guess)input).getGuess();
+                        response = checkGuess(guess);
+                        msgResponse = new Guess(name+ ": " + guess); // guess with player name
+                        broadcast(msgResponse,out);
 
-                            for (var client : clients) {// przeslanie do wszystkich ze trafione
-                                if (client != out) {
-                                    client.writeObject(msgResponse);
-                                    client.flush();
-                                }
-                            }
-
-                            //przeniesienie zezwolenia na rysowanie na kolejnego gracza (iterator na secie)
-
-                        }else{
-                            msgResponse = new Guess(response);
-
-                            for (var client : clients) {
-                                if (client != out) {
-                                    client.writeObject(msgResponse);
-                                    client.flush();
-                                }
-                            }
+                        if(response.equals("OK")) {
+                            //punktyy
+                            changeDrawer();
+                            broadcastAll(new Guess("BRAWO! Haslo to: " + guess));
                         }
                     }
-                    else if(input instanceof Point){
-                        for (var client : clients) {
-                            if (client != out){
-                                client.writeObject(input);
-                                client.flush();
+                    else if(input instanceof Point || input instanceof ColorRGB) {
+                        broadcast(input,out);
+                    }else if(input instanceof Message){
+                        msgType=((Message)input).getMessageType();
+                        msg=((Message)input).getMessage();
+
+                        if(msgType.equals("NAME")){
+                            scoreborad.add(new Pair<>(msg,0));
+
+                            Iterator<Pair<ObjectOutputStream,String>> iterator = clients.iterator();
+
+                            while(iterator.hasNext()) {
+                                Pair<ObjectOutputStream,String> setElement = iterator.next();
+                                if(setElement.getFirst()==out) {
+                                    setElement.setSecond(msg);
+                                    name=msg;
+                                    break;
+                                }
                             }
-                        }
-                    }else if(input instanceof ColorRGB){
-                        for (var client : clients) {
-                            if (client != out){
-                                client.writeObject(input);
-                                client.flush();
-                            }
+                            broadcastAll(scoreborad);
+
+
+                        }else if(msgType.equals("START")){ //game start
+                            changeDrawer();
+                        }else if(msgType.equals("EXIT")){
+                            break;
                         }
                     }
                 }
             } catch (IOException | ClassNotFoundException e) {
                 System.out.println("BYE BYE ");
             }finally {
-                if (out != null) {
-                    clients.remove(out);
-                }
+                removePlayer();
 
                 try {
                     socket.close();

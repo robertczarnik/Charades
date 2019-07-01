@@ -1,5 +1,15 @@
 package sample;
 
+//scoreboard  poprawic bo cos sie nie broadcastuje
+//przyznawanie punktow
+
+import collections.Pair;
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -7,13 +17,19 @@ import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.StrokeLineCap;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
+import javafx.util.Duration;
 import objects.ColorRGB;
 import objects.Guess;
 import objects.Message;
 import objects.Point;
 import server.Client;
 import java.io.IOException;
-
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 
 public class Controller implements Runnable{
@@ -33,10 +49,25 @@ public class Controller implements Runnable{
     private Label keyWordLabel;
 
     @FXML
-    private TextArea textArea;
+    private TextField textField;
 
     @FXML
-    private TextField textField;
+    private TextFlow textFlow;
+
+    @FXML
+    private ScrollPane scrollPane;
+
+    @FXML
+    private Button start;
+
+    @FXML
+    private ListView<Pair<String,Integer>> listView;
+
+    @FXML
+    private Label timer;
+
+    private Timeline timeline;
+    private IntegerProperty timeSeconds = new SimpleIntegerProperty();
 
     private Client client;
     private GraphicsContext g;
@@ -54,10 +85,28 @@ public class Controller implements Runnable{
     private boolean drawPermission = false;
     private Message msg;
     private String guess;
+    private String name;
+
+    private static CopyOnWriteArrayList<Pair<String,Integer>> scoreborad;
+
 
     public void initialize(){
         colorPicker.setValue(Color.BLACK);
         g = canvas.getGraphicsContext2D();
+        scrollPane.vvalueProperty().bind(textFlow.heightProperty()); //auto scroll down
+
+        timer.textProperty().bind(timeSeconds.asString()); //zbindowanie labela timer z licznikiem sekund
+        //ObservableList<String> names = FXCollections.observableArrayList();
+    }
+
+    @FXML
+    private void onStart(){
+        start.setVisible(false);
+        try {
+            client.getOut().writeObject(new Message("START",""));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
@@ -76,7 +125,9 @@ public class Controller implements Runnable{
         }
     }
 
-    public void initClient(Client client) { //tylko raz mozna zainicjalizowac clienta
+    public void initClient(Client client, String name) { //tylko raz mozna zainicjalizowac clienta
+        this.name=name;
+
         if (this.client != null) {
             throw new IllegalStateException("Client can only be initialized once");
         }
@@ -128,15 +179,43 @@ public class Controller implements Runnable{
 
     @FXML
     private void onWordEnter(){
-        String word = textField.getText() + "\n";
+        String word = textField.getText();
         textField.setText("");
-        textArea.appendText(word);
+
+        Text textName = new Text(name+": ");
+        textName.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+
+        textFlow.getChildren().add(textName);
+        textFlow.getChildren().add(new Text(word + "\n"));
 
         try {
             client.getOut().writeObject(new Guess(word));
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+
+    public void timerManager(int time) {
+        if (timeline != null) {
+            timeline.stop();
+        }
+        timeSeconds.set(time);
+        timeline = new Timeline();
+        timeline.getKeyFrames().add(
+                new KeyFrame(Duration.seconds(time+1),
+                        new KeyValue(timeSeconds, 0)));
+
+        timeline.setOnFinished(event -> {
+            try {
+                client.getOut().writeObject(new Message("START",""));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+        timeline.playFromStart();
+
     }
 
     @Override
@@ -148,16 +227,23 @@ public class Controller implements Runnable{
         Point point;
 
 
+        //send player name to server
+        try {
+            client.getOut().writeObject(new Message("NAME",name));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         while (true)
         {
             try {
 
                 obj = client.getIn().readObject(); //get object
 
+
                 if(obj instanceof Point){
                     point = (Point)obj;
                     size=point.getSize();
-                    //color=point.getColor();
 
                     if(point.isSinglePoint()){
                         prevPosX=point.getX();
@@ -174,13 +260,58 @@ public class Controller implements Runnable{
                     msg = (Message)obj;
 
                     if(msg.getMessageType().equals("ADMIN")){
-                        admin=msg.getMessage();
+                        admin=Boolean.parseBoolean(msg.getMessage());
+                        if(admin){
+                            start.setVisible(true);
+                        }
                     }else if(msg.getMessageType().equals("DRAWER")){
-                        drawPermission=msg.getMessage();
+                        Object[] drawAndTime = msg.getMessage().split(",");
+                        drawPermission = Boolean.parseBoolean(drawAndTime[0].toString());
+                        int time = Integer.parseInt(drawAndTime[1].toString());
+
+                        if(drawPermission){ //true
+                            sizeLabel.setVisible(true);
+                            keyWordLabel.setVisible(true);
+                            slider.setVisible(true);
+                            colorPicker.setVisible(true);
+                            textField.setDisable(true);
+                            canvas.setDisable(false);
+                            g.clearRect(0,0,canvas.getWidth(),canvas.getHeight());
+
+                        }else{
+                            sizeLabel.setVisible(false);
+                            keyWordLabel.setVisible(false);
+                            slider.setVisible(false);
+                            colorPicker.setVisible(false);
+                            textField.setDisable(false);
+                            canvas.setDisable(true);
+                            g.clearRect(0,0,canvas.getWidth(),canvas.getHeight());
+                        }
+
+                        Platform.runLater(new Runnable() { // jak to dziala??
+                            public void run() {
+                                timerManager(time);
+                            }
+                        });
                     }
                 } else if(obj instanceof Guess){
                     guess = ((Guess)obj).getGuess();
-                    textArea.appendText(guess);
+                    String tab[];
+                    tab=guess.split(":");
+
+                    Text textName = new Text(tab[0]+": ");
+                    textName.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+
+
+                    Platform.runLater(new Runnable() { // jak to dziala??
+                        public void run() {
+                            textFlow.getChildren().add(textName);
+                            textFlow.getChildren().add(new Text(tab[1] + "\n"));
+                        }
+                    });
+                } else if(obj instanceof CopyOnWriteArrayList){
+                    scoreborad = (CopyOnWriteArrayList)obj;
+                    listView.getItems().setAll(scoreborad);
                 }
 
 
