@@ -45,8 +45,8 @@ public class Pair<U,V> implements Serializable {
 
     @Override
     public String toString() {
-        String result = first + "";
-        result = result + " ".repeat(15-result.length()) + second;
+        String result = second+ "";
+        result = result + " ".repeat(6-result.length()) + first;
         return result;
     }
 }

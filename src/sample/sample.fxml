@@ -23,9 +23,9 @@
          <font>
             <Font name="Times New Roman" size="21.0" />
          </font></Label>
-      <Label fx:id="keyWordLabel" layoutX="49.0" layoutY="21.0" text="Haslo" visible="false">
+      <Label fx:id="keyWordLabel" layoutX="20.0" layoutY="26.0" text="Okoń" visible="false">
          <font>
-            <Font name="Times New Roman" size="17.0" />
+            <Font name="Times New Roman Bold" size="20.0" />
          </font>
       </Label>
       <Slider fx:id="slider" layoutX="295.0" layoutY="4.0" max="99.0" min="1.0" onMouseClicked="#onBrushSizeChange" onMouseReleased="#onBrushSizeChange" onScroll="#onBrushSizeChange" prefWidth="100.0" value="8.0" visible="false" />
@@ -44,6 +44,7 @@
          </font>
       </Button>
       <ListView fx:id="listView" layoutX="420.0" layoutY="256.0" prefHeight="134.0" prefWidth="148.0" />
-      <Label fx:id="timer" layoutX="104.0" layoutY="21.0" />
+      <Label fx:id="timer" layoutX="64.0" layoutY="4.0" visible="false" />
+      <Label fx:id="tiktakLabel" layoutX="20.0" layoutY="4.0" text="tik-tak:" visible="false" />
    </children>
 </AnchorPane>

@@ -1,6 +1,10 @@
 package sample;
 
-//przyznawanie punktow
+// przyznawanie punktow
+// czy guess byl bliski? regex jakis moze
+// resetowanie wielkosci pedzla i koloru
+// wyslanie hasla rysujacemu i ustawienie etykiety
+// miejsce do przechowywania wszystkich mozliwych haselek
 
 import collections.Pair;
 import javafx.animation.KeyFrame;
@@ -31,7 +35,6 @@ import server.Client;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.*;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 
 public class Controller implements Runnable{
@@ -68,6 +71,9 @@ public class Controller implements Runnable{
     @FXML
     private Label timer;
 
+    @FXML
+    private Label tiktakLabel;
+
     private Timeline timeline;
     private IntegerProperty timeSeconds = new SimpleIntegerProperty();
 
@@ -89,7 +95,7 @@ public class Controller implements Runnable{
     private String guess;
     private String name;
 
-    private List<Pair<String,Integer>> scoreborad;
+    private List<Pair<String,Integer>> scoreboard;
     private ObservableList<Pair<String,Integer>> players = FXCollections.observableArrayList();
 
     public void initialize(){
@@ -100,7 +106,7 @@ public class Controller implements Runnable{
         listView.setItems(players);
 
         timer.textProperty().bind(timeSeconds.asString()); //zbindowanie labela timer z licznikiem sekund
-        //ObservableList<String> names = FXCollections.observableArrayList();
+
     }
 
     @FXML
@@ -297,6 +303,9 @@ public class Controller implements Runnable{
                             g.clearRect(0,0,canvas.getWidth(),canvas.getHeight());
                         }
 
+                        timer.setVisible(true);
+                        tiktakLabel.setVisible(true);
+
                         Platform.runLater(new Runnable() { // jak to dziala??
                             public void run() {
                                 timerManager(time);
@@ -319,19 +328,10 @@ public class Controller implements Runnable{
                         }
                     });
                 } else if(obj instanceof List){
-                    scoreborad = castToAnything(obj);
-
-                    Iterator<Pair<String,Integer>> iterators = scoreborad.iterator();
-
-                    while(iterators.hasNext()){
-                        Pair<String,Integer> ele = iterators.next();
-                        System.out.println(ele.getFirst());
-                    }
-
-
+                    scoreboard = castToAnything(obj);
                     Platform.runLater(new Runnable() { // jak to dziala??
                         public void run() {
-                            players.setAll(scoreborad);
+                            players.setAll(scoreboard);
                         }
                     });
                 }

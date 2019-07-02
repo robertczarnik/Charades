@@ -21,7 +21,9 @@ public class Server {
     private static String secretWord = "okon";
     private static int queueNumber=1;
     private static int time=10;
+    private static String drawerName;
     private static List<Pair<String,Integer>> scoreboard = Collections.synchronizedList(new ArrayList<>());
+    private static long startTime;
 
 
 
@@ -97,11 +99,13 @@ public class Server {
                     output.writeObject(new Message("DRAWER","true,"+time));
                     output.flush();
                     queueNumber++;
+                    drawerName=setElement.getSecond();
                     break;
                 }
                 i++;
             }
 
+            startTime = System.currentTimeMillis();
         }
 
         private void removePlayer(){
@@ -143,9 +147,30 @@ public class Server {
                         broadcast(msgResponse,out);
 
                         if(response.equals("OK")) {
-                            //punktyy
+
+                            synchronized (scoreboard) {
+                                Iterator<Pair<String, Integer>> scoreboardIterator = scoreboard.iterator();
+                                while (scoreboardIterator.hasNext()){
+                                    Pair<String,Integer> element = scoreboardIterator.next();
+                                    if(element.getFirst().equals(name)){ // ten co zgadl
+                                        int points = (int)(40*(time - (System.currentTimeMillis()-startTime)/1000)/time); // ((time-elapsed)/time) * points
+                                        element.setSecond(element.getSecond()+points);
+                                    }else if(element.getFirst().equals(drawerName)){ // ten co rysowal
+                                        int points = (int)(50*(time - (System.currentTimeMillis()-startTime)/1000)/time);
+                                        element.setSecond(element.getSecond()+points);
+                                    }
+                                }
+                            }
+
+
+                            // sortowanie zeby gracz z najwyzszym wynikiem byl u gory
+                            scoreboard.sort((Pair<String,Integer> ele1,Pair<String,Integer> ele2) -> ele2.getSecond()-ele1.getSecond());
+
+                            broadcastAll(scoreboard); //przeslanie zaktualizowanej tabeli
+
+
                             changeDrawer();
-                            broadcastAll(new Guess("BRAWO! Haslo to: " + guess));
+                            broadcastAll(new Guess("BRAWO! : " + guess));
                         }
                     }
                     else if(input instanceof Point || input instanceof ColorRGB) {
