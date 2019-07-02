@@ -1,6 +1,5 @@
 package sample;
 
-//scoreboard  poprawic bo cos sie nie broadcastuje
 //przyznawanie punktow
 
 import collections.Pair;
@@ -10,6 +9,8 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -28,6 +29,7 @@ import objects.Message;
 import objects.Point;
 import server.Client;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -87,13 +89,15 @@ public class Controller implements Runnable{
     private String guess;
     private String name;
 
-    private static CopyOnWriteArrayList<Pair<String,Integer>> scoreborad;
-
+    private List<Pair<String,Integer>> scoreborad;
+    private ObservableList<Pair<String,Integer>> players = FXCollections.observableArrayList();
 
     public void initialize(){
         colorPicker.setValue(Color.BLACK);
         g = canvas.getGraphicsContext2D();
         scrollPane.vvalueProperty().bind(textFlow.heightProperty()); //auto scroll down
+
+        listView.setItems(players);
 
         timer.textProperty().bind(timeSeconds.asString()); //zbindowanie labela timer z licznikiem sekund
         //ObservableList<String> names = FXCollections.observableArrayList();
@@ -218,6 +222,11 @@ public class Controller implements Runnable{
 
     }
 
+    @SuppressWarnings("unchecked")
+    public static <T> T castToAnything(Object obj) {
+        return (T) obj;
+    }
+
     @Override
     public void run() {
         // the following loop performs the exchange of
@@ -309,9 +318,22 @@ public class Controller implements Runnable{
                             textFlow.getChildren().add(new Text(tab[1] + "\n"));
                         }
                     });
-                } else if(obj instanceof CopyOnWriteArrayList){
-                    scoreborad = (CopyOnWriteArrayList)obj;
-                    listView.getItems().setAll(scoreborad);
+                } else if(obj instanceof List){
+                    scoreborad = castToAnything(obj);
+
+                    Iterator<Pair<String,Integer>> iterators = scoreborad.iterator();
+
+                    while(iterators.hasNext()){
+                        Pair<String,Integer> ele = iterators.next();
+                        System.out.println(ele.getFirst());
+                    }
+
+
+                    Platform.runLater(new Runnable() { // jak to dziala??
+                        public void run() {
+                            players.setAll(scoreborad);
+                        }
+                    });
                 }
 
 

@@ -21,7 +21,7 @@ public class Server {
     private static String secretWord = "okon";
     private static int queueNumber=1;
     private static int time=10;
-    private static CopyOnWriteArrayList<Pair<String,Integer>> scoreborad = new CopyOnWriteArrayList<>();
+    private static List<Pair<String,Integer>> scoreboard = Collections.synchronizedList(new ArrayList<>());
 
 
 
@@ -79,6 +79,7 @@ public class Server {
             for (var client : clients) {
                 client.getFirst().writeObject(obj);
                 client.getFirst().flush();
+                client.getFirst().reset(); //reset cache bo zaszala zmiana w liscie scoreboard
             }
         }
 
@@ -154,7 +155,7 @@ public class Server {
                         msg=((Message)input).getMessage();
 
                         if(msgType.equals("NAME")){
-                            scoreborad.add(new Pair<>(msg,0));
+                            scoreboard .add(new Pair<>(msg,0)); // synchronized call
 
                             Iterator<Pair<ObjectOutputStream,String>> iterator = clients.iterator();
 
@@ -166,7 +167,15 @@ public class Server {
                                     break;
                                 }
                             }
-                            broadcastAll(scoreborad);
+
+                            Iterator<Pair<String,Integer>> iterators = scoreboard .iterator();
+
+                            while(iterators.hasNext()){
+                                Pair<String,Integer> ele = iterators.next();
+                                System.out.println(ele.getFirst());
+                            }
+
+                            broadcastAll(scoreboard);
 
 
                         }else if(msgType.equals("START")){ //game start
