@@ -1,8 +1,8 @@
 package server;
-// Java implementation of  Server side
-// It contains two classes : Server and ClientHandler
+
 
 import collections.Pair;
+import javafx.css.Match;
 import objects.ColorRGB;
 import objects.Guess;
 import objects.Message;
@@ -11,21 +11,32 @@ import objects.Point;
 import java.io.*;
 import java.util.*;
 import java.net.*;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 // Server class
 public class Server {
 
     private static Set<Pair<ObjectOutputStream,String>> clients = new LinkedHashSet<>(); //set z kolejnoscia w jakies zostaly dodawane elementy
-    private static String secretWord = "okon";
+    private static List<Pair<String,Integer>> scoreboard = Collections.synchronizedList(new ArrayList<>());
+
+    private static String[] words = {"Okoń","Rower","Okno","Arbuz","Kot"};
+
+    private static String secretWord;
     private static int queueNumber=1;
     private static int time=10;
     private static String drawerName;
-    private static List<Pair<String,Integer>> scoreboard = Collections.synchronizedList(new ArrayList<>());
+
     private static long startTime;
 
+    private static String regex = "\\d";
+    private static Pattern pattern;
 
+
+    private void compliePattern(){
+        pattern = Pattern.compile(regex);
+    }
 
     public static void main(String[] args) throws IOException {
         System.out.println("The chat server is running...");
@@ -90,13 +101,17 @@ public class Server {
 
             if(queueNumber>clients.size()) queueNumber=1;
 
+            Random random = new Random();
+            secretWord = words[random.nextInt(words.length)];
+
+
             int i=1;
             while(iterator.hasNext()) {
                 Pair<ObjectOutputStream,String> setElement = iterator.next();
                 if(i==queueNumber) {
                     ObjectOutputStream output = setElement.getFirst();
-                    broadcast(new Message("DRAWER","false,"+time),output);
-                    output.writeObject(new Message("DRAWER","true,"+time));
+                    broadcast(new Message("DRAWER","false,"+" "+","+time),output);
+                    output.writeObject(new Message("DRAWER","true,"+secretWord+","+time));
                     output.flush();
                     queueNumber++;
                     drawerName=setElement.getSecond();
@@ -203,7 +218,7 @@ public class Server {
                             broadcastAll(scoreboard);
 
 
-                        }else if(msgType.equals("START")){ //game start
+                        }else if(msgType.equals("START")){ //game start || time over
                             changeDrawer();
                         }else if(msgType.equals("EXIT")){
                             break;

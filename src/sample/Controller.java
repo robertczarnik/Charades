@@ -1,10 +1,11 @@
 package sample;
 
-// przyznawanie punktow
 // czy guess byl bliski? regex jakis moze
-// resetowanie wielkosci pedzla i koloru
-// wyslanie hasla rysujacemu i ustawienie etykiety
-// miejsce do przechowywania wszystkich mozliwych haselek
+// + resetowanie wielkosci pedzla i koloru
+// + wyslanie hasla rysujacemu i ustawienie etykiety
+// + miejsce do przechowywania wszystkich mozliwych haselek (server)
+// + bug z tym ze jak sie nie pusci guzika do rysowania to mozna rysowac w czyjejs kolejce
+//
 
 import collections.Pair;
 import javafx.animation.KeyFrame;
@@ -13,6 +14,8 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -33,7 +36,6 @@ import objects.Message;
 import objects.Point;
 import server.Client;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.util.*;
 
 
@@ -71,8 +73,6 @@ public class Controller implements Runnable{
     @FXML
     private Label timer;
 
-    @FXML
-    private Label tiktakLabel;
 
     private Timeline timeline;
     private IntegerProperty timeSeconds = new SimpleIntegerProperty();
@@ -80,34 +80,24 @@ public class Controller implements Runnable{
     private Client client;
     private GraphicsContext g;
 
-    //---Rysowanie---
+    //---Drawing---
     private double prevPosX=-1;
     private double prevPosY=-1;
     private double x;
     private double y;
-    private int size = 7;
+    private int size = 8;
     private Color color = Color.BLACK;
     //---
 
     private boolean admin = false;
-    private boolean drawPermission = false;
     private Message msg;
     private String guess;
     private String name;
 
+    private boolean drawPermission=false;
+
     private List<Pair<String,Integer>> scoreboard;
     private ObservableList<Pair<String,Integer>> players = FXCollections.observableArrayList();
-
-    public void initialize(){
-        colorPicker.setValue(Color.BLACK);
-        g = canvas.getGraphicsContext2D();
-        scrollPane.vvalueProperty().bind(textFlow.heightProperty()); //auto scroll down
-
-        listView.setItems(players);
-
-        timer.textProperty().bind(timeSeconds.asString()); //zbindowanie labela timer z licznikiem sekund
-
-    }
 
     @FXML
     private void onStart(){
@@ -120,19 +110,78 @@ public class Controller implements Runnable{
     }
 
     @FXML
-    private void onBrushSizeChange(){
-        size = (int)slider.getValue();
-        sizeLabel.setText(""+size);
+    private void onColorPicker(){
+        if(drawPermission) {
+            color = colorPicker.getValue();
+            try {
+                client.getOut().writeObject(new ColorRGB(color)); // color
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @FXML
-    private void onColorPicker(){
-        color=colorPicker.getValue();
+    private void onMouseDragged(MouseEvent event){ // draw line between prev pos and actual pos
+        if(drawPermission){
+            x = event.getX();
+            y = event.getY();
+            drawLine(x,y);
+
+            try {
+                client.getOut().writeObject(new Point(x,y,size,false)); //line
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @FXML
+    private void onMousePressed(MouseEvent event) { // draw a oval point and set previous postions of x and y
+        if(drawPermission) {
+            prevPosX = event.getX();
+            prevPosY = event.getY();
+            drawPoint(prevPosX, prevPosY);
+
+            try {
+                client.getOut().writeObject(new Point(prevPosX, prevPosY, size, true)); // point
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @FXML
+    private void onWordEnter(){
+        String word = textField.getText();
+        textField.setText("");
+
+        Text textName = new Text(name+": ");
+        textName.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
+
+        textFlow.getChildren().add(textName);
+        textFlow.getChildren().add(new Text(word + "\n"));
+
         try {
-            client.getOut().writeObject(new ColorRGB(color)); // color
+            client.getOut().writeObject(new Guess(word));
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void initialize(){
+        colorPicker.setValue(Color.BLACK);
+        g = canvas.getGraphicsContext2D();
+
+
+        listView.setItems(players);
+
+        scrollPane.vvalueProperty().bind(textFlow.heightProperty()); //auto scroll down
+
+        sizeLabel.textProperty().bind((slider.valueProperty().asString("%.0f"))); //bind sizeLabel with Integer value of slider
+        slider.valueProperty().addListener(e -> size = (int)slider.getValue()); //change size variable when moving slider
+
+        timer.textProperty().bind(timeSeconds.asString()); //bind timer label with countdown timer
     }
 
     public void initClient(Client client, String name) { //tylko raz mozna zainicjalizowac clienta
@@ -161,60 +210,15 @@ public class Controller implements Runnable{
         g.fillOval(x,y,size,size);
     }
 
-    @FXML
-    private void onMouseDragged(MouseEvent event){ // draw line between prev pos and actual pos
-        x = event.getX();
-        y = event.getY();
-        drawLine(x,y);
+    private void roundStart(int time,String word) {
+        keyWordLabel.setText(word);
 
-        try {
-            client.getOut().writeObject(new Point(x,y,size,false)); //line
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @FXML
-    private void onMousePressed(MouseEvent event) { // draw a oval point and set previous postions of x and y
-        prevPosX=event.getX();
-        prevPosY=event.getY();
-        drawPoint(prevPosX,prevPosY);
-
-        try {
-            client.getOut().writeObject(new Point(prevPosX,prevPosY,size,true)); // point
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @FXML
-    private void onWordEnter(){
-        String word = textField.getText();
-        textField.setText("");
-
-        Text textName = new Text(name+": ");
-        textName.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
-
-        textFlow.getChildren().add(textName);
-        textFlow.getChildren().add(new Text(word + "\n"));
-
-        try {
-            client.getOut().writeObject(new Guess(word));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-
-    public void timerManager(int time) {
         if (timeline != null) {
             timeline.stop();
         }
         timeSeconds.set(time);
         timeline = new Timeline();
-        timeline.getKeyFrames().add(
-                new KeyFrame(Duration.seconds(time+1),
-                        new KeyValue(timeSeconds, 0)));
+        timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(time+1), new KeyValue(timeSeconds, 0)));
 
         timeline.setOnFinished(event -> {
             try {
@@ -225,19 +229,31 @@ public class Controller implements Runnable{
         });
 
         timeline.playFromStart();
-
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> T castToAnything(Object obj) {
+    private static <T> T castToAnything(Object obj) {
         return (T) obj;
+    }
+
+    /** setting visibility of components and resetting size, color and canvas */
+    private void setProperties(boolean drawPermission){
+        sizeLabel.setVisible(drawPermission);
+        keyWordLabel.setVisible(drawPermission);
+        slider.setVisible(drawPermission);
+        colorPicker.setVisible(drawPermission);
+        textField.setDisable(drawPermission);
+        canvas.setDisable(!drawPermission);
+
+        g.clearRect(0,0,canvas.getWidth(),canvas.getHeight());
+        size = 8;
+        color = Color.BLACK;
+        colorPicker.setValue(color);
+        slider.setValue(size);
     }
 
     @Override
     public void run() {
-        // the following loop performs the exchange of
-        // information between client and client handler
-
         Object obj;
         Point point;
 
@@ -280,36 +296,16 @@ public class Controller implements Runnable{
                             start.setVisible(true);
                         }
                     }else if(msg.getMessageType().equals("DRAWER")){
-                        Object[] drawAndTime = msg.getMessage().split(",");
-                        drawPermission = Boolean.parseBoolean(drawAndTime[0].toString());
-                        int time = Integer.parseInt(drawAndTime[1].toString());
+                        Object[] drawProperties = msg.getMessage().split(",");
 
-                        if(drawPermission){ //true
-                            sizeLabel.setVisible(true);
-                            keyWordLabel.setVisible(true);
-                            slider.setVisible(true);
-                            colorPicker.setVisible(true);
-                            textField.setDisable(true);
-                            canvas.setDisable(false);
-                            g.clearRect(0,0,canvas.getWidth(),canvas.getHeight());
+                        drawPermission = Boolean.parseBoolean(drawProperties[0].toString());
+                        String word = drawProperties[1].toString();
+                        int time = Integer.parseInt(drawProperties[2].toString());
 
-                        }else{
-                            sizeLabel.setVisible(false);
-                            keyWordLabel.setVisible(false);
-                            slider.setVisible(false);
-                            colorPicker.setVisible(false);
-                            textField.setDisable(false);
-                            canvas.setDisable(true);
-                            g.clearRect(0,0,canvas.getWidth(),canvas.getHeight());
-                        }
-
-                        timer.setVisible(true);
-                        tiktakLabel.setVisible(true);
-
-                        Platform.runLater(new Runnable() { // jak to dziala??
-                            public void run() {
-                                timerManager(time);
-                            }
+                        boolean finalDrawPermission = drawPermission;
+                        Platform.runLater(() -> {
+                            roundStart(time,word);
+                            setProperties(finalDrawPermission);
                         });
                     }
                 } else if(obj instanceof Guess){
@@ -320,20 +316,14 @@ public class Controller implements Runnable{
                     Text textName = new Text(tab[0]+": ");
                     textName.setFont(Font.font("Verdana", FontWeight.BOLD, 12));
 
-
-                    Platform.runLater(new Runnable() { // jak to dziala??
-                        public void run() {
-                            textFlow.getChildren().add(textName);
-                            textFlow.getChildren().add(new Text(tab[1] + "\n"));
-                        }
+                    Platform.runLater(() -> {
+                        textFlow.getChildren().add(textName);
+                        textFlow.getChildren().add(new Text(tab[1] + "\n"));
                     });
+
                 } else if(obj instanceof List){
                     scoreboard = castToAnything(obj);
-                    Platform.runLater(new Runnable() { // jak to dziala??
-                        public void run() {
-                            players.setAll(scoreboard);
-                        }
-                    });
+                    Platform.runLater(() -> players.setAll(scoreboard));
                 }
 
 

@@ -28,7 +28,7 @@
             <Font name="Times New Roman Bold" size="20.0" />
          </font>
       </Label>
-      <Slider fx:id="slider" layoutX="295.0" layoutY="4.0" max="99.0" min="1.0" onMouseClicked="#onBrushSizeChange" onMouseReleased="#onBrushSizeChange" onScroll="#onBrushSizeChange" prefWidth="100.0" value="8.0" visible="false" />
+      <Slider fx:id="slider" layoutX="295.0" layoutY="4.0" max="99.0" min="1.0" prefWidth="100.0" value="8.0" visible="false" />
       <TextField fx:id="textField" disable="true" layoutX="413.0" layoutY="210.0" onAction="#onWordEnter" prefHeight="20.0" prefWidth="162.0" />
       <ScrollPane fx:id="scrollPane" layoutX="416.0" layoutY="20.0" prefHeight="190.0" prefViewportHeight="148.0" prefViewportWidth="139.0" prefWidth="162.0" vvalue="1.0" AnchorPane.bottomAnchor="223.0" AnchorPane.leftAnchor="416.0" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="20.0">
          <content>
@@ -44,7 +44,7 @@
          </font>
       </Button>
       <ListView fx:id="listView" layoutX="420.0" layoutY="256.0" prefHeight="134.0" prefWidth="148.0" />
-      <Label fx:id="timer" layoutX="64.0" layoutY="4.0" visible="false" />
-      <Label fx:id="tiktakLabel" layoutX="20.0" layoutY="4.0" text="tik-tak:" visible="false" />
+      <Label fx:id="timer" layoutX="64.0" layoutY="4.0" />
+      <Label fx:id="tiktakLabel" layoutX="20.0" layoutY="4.0" text="tik-tak:" />
    </children>
 </AnchorPane>
