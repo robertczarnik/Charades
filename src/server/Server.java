@@ -21,7 +21,7 @@ public class Server {
     private static Set<Pair<ObjectOutputStream,String>> clients = new LinkedHashSet<>(); //set z kolejnoscia w jakies zostaly dodawane elementy
     private static List<Pair<String,Integer>> scoreboard = Collections.synchronizedList(new ArrayList<>());
 
-    private static String[] words = {"Okoń","Rower","Okno","Arbuz","Kot"};
+    private static String[] words ={"Kot w butach","Świstak w polu"}; //{"Okoń","Rower","Okno","Arbuz","Kot w butach"};
 
     private static String secretWord;
     private static int queueNumber=1;
@@ -30,11 +30,25 @@ public class Server {
 
     private static long startTime;
 
-    private static String regex = "\\d";
+    private static String regex;
     private static Pattern pattern;
 
 
-    private void compliePattern(){
+
+
+    public void compliePattern(){
+        StringBuilder strBuilder= new StringBuilder();
+        String [] words = secretWord.split(" ");
+        for(String word : words){ // words under 3 letters - skip , words between 3-4 letters - match all, words above 4 letters - match first 3 letters
+            if(word.length()>2){
+              if(word.length()<5){
+                  strBuilder.append(".*").append(word).append(".*|");
+              }else{
+                  strBuilder.append(".*").append(word, 0, 3).append(".*|");
+              }
+            }
+        }
+        regex=strBuilder.substring(0, regex.length() - 1);
         pattern = Pattern.compile(regex);
     }
 
@@ -101,8 +115,11 @@ public class Server {
 
             if(queueNumber>clients.size()) queueNumber=1;
 
+            // take word
             Random random = new Random();
             secretWord = words[random.nextInt(words.length)];
+
+            //compliePattern();
 
 
             int i=1;

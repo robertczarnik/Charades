@@ -1,11 +1,9 @@
 package sample;
 
 // czy guess byl bliski? regex jakis moze
-// + resetowanie wielkosci pedzla i koloru
-// + wyslanie hasla rysujacemu i ustawienie etykiety
-// + miejsce do przechowywania wszystkich mozliwych haselek (server)
-// + bug z tym ze jak sie nie pusci guzika do rysowania to mozna rysowac w czyjejs kolejce
-//
+// server z stolikami i dolaczanie do nich
+// faktoryzacja i komentarze
+// synchronizowany set w serwerze
 
 import collections.Pair;
 import javafx.animation.KeyFrame;
@@ -14,8 +12,6 @@ import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
