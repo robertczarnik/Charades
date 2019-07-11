@@ -1,258 +1,295 @@
 package server;
 
+// bug jedna osoba pod rzad 2 razy rysuje
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
 
 import collections.Pair;
-import javafx.css.Match;
 import objects.ColorRGB;
 import objects.Guess;
 import objects.Message;
 import objects.Point;
 
-import java.io.*;
-import java.util.*;
-import java.net.*;
-import java.util.concurrent.Executors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-// Server class
 public class Server {
+    //locks
+    private final Object clientsLock = new Object();
+    private final Object scoreboardLock = new Object();
+    private final Object lock = new Object();
 
-    private static Set<Pair<ObjectOutputStream,String>> clients = new LinkedHashSet<>(); //set z kolejnoscia w jakies zostaly dodawane elementy
-    private static List<Pair<String,Integer>> scoreboard = Collections.synchronizedList(new ArrayList<>());
+    //server variables
+    private ServerSocket serverSocket;
+    private int numberOfThreads;
 
-    private static String[] words ={"Kot w butach","Świstak w polu"}; //{"Okoń","Rower","Okno","Arbuz","Kot w butach"};
+    //collections
+    private Set<ClientHandler> clients = Collections.synchronizedSet(new LinkedHashSet<>());
+    private List<Pair<String,Integer>> scoreboard = Collections.synchronizedList(new ArrayList<>());
 
-    private static String secretWord;
-    private static int queueNumber=1;
-    private static int time=10;
-    private static String drawerName;
+    //game variables
+    private String[] words = {"Kot w butach","Świstak w polu"};
+    private String actualWord;
+    private Pattern pattern;
+    private int queueNumber=1;
 
-    private static long startTime;
+    //actual important roles
+    private String drawerName;
+    private ClientHandler admin;
 
-    private static String regex;
-    private static Pattern pattern;
+    //round time
+    private final int time=10;
+    private long startTime;
 
+    public Server(ServerSocket serverSocket, int numberOfThreads){
+        this.serverSocket = serverSocket;
+        this.numberOfThreads = numberOfThreads;
+    }
 
+    /**
+     * The usual loop of accepting connections and firing off new threads to handle them in thread pool
+     */
+    public void getConnections() throws IOException {
+        var pool = Executors.newFixedThreadPool(numberOfThreads);
 
+        while (true) {
+            ClientHandler client = new ClientHandler(serverSocket.accept(),this);
+            clients.add(client);
+            pool.execute(client);
+        }
+    }
 
-    public void compliePattern(){
+    /**
+     * make proper regex and copile it to use it later
+     */
+    private void compliePattern(){
         StringBuilder strBuilder= new StringBuilder();
-        String [] words = secretWord.split(" ");
+        String [] words = actualWord.split(" ");
         for(String word : words){ // words under 3 letters - skip , words between 3-4 letters - match all, words above 4 letters - match first 3 letters
             if(word.length()>2){
-              if(word.length()<5){
-                  strBuilder.append(".*").append(word).append(".*|");
-              }else{
-                  strBuilder.append(".*").append(word, 0, 3).append(".*|");
-              }
-            }
-        }
-        regex=strBuilder.substring(0, regex.length() - 1);
-        pattern = Pattern.compile(regex);
-    }
-
-    public static void main(String[] args) throws IOException {
-        System.out.println("The chat server is running...");
-
-        var pool = Executors.newFixedThreadPool(4);
-
-        try (var listener = new ServerSocket(5001)) {
-            while (true) {
-                pool.execute(new ClientHandler(listener.accept()));
-
-            }
-        }
-    }
-
-
-    // ClientHandler class
-    static class ClientHandler implements Runnable {
-        ObjectInputStream in;
-        ObjectOutputStream out;
-        final Socket socket;
-        String response;
-        String msgType;
-        String msg;
-        String name;
-        Guess msgResponse;
-
-
-        // Constructor
-        public ClientHandler(Socket socket) {
-            this.socket = socket;
-        }
-
-        //TODO: dopiescic
-        private String checkGuess( String guess){
-            if(guess.equals(secretWord))
-                return "OK";
-            else {
-                return guess;
-            }
-
-        }
-
-        private void broadcast(Object obj,ObjectOutputStream out) throws IOException {
-            for (var client : clients) {
-                if (client.getFirst() != out) {
-                    client.getFirst().writeObject(obj);
-                    client.getFirst().flush();
+                if(word.length()<5){
+                    strBuilder.append(".*").append(word).append(".*|");
+                }else{
+                    strBuilder.append(".*").append(word, 0, 3).append(".*|");
                 }
             }
         }
 
-        private void broadcastAll(Object obj) throws IOException {
-            for (var client : clients) {
-                client.getFirst().writeObject(obj);
-                client.getFirst().flush();
-                client.getFirst().reset(); //reset cache bo zaszala zmiana w liscie scoreboard
+        pattern = Pattern.compile(strBuilder.substring(0, strBuilder.length() - 1));
+    }
+
+    private void broadcast(Object obj,ObjectOutputStream out) throws IOException {
+        for (var client : clients) {
+            if (client.out != out) {
+                client.out.writeObject(obj);
+                client.out.flush();
             }
         }
+    }
 
-        private void changeDrawer() throws IOException {
-            Iterator<Pair<ObjectOutputStream,String>> iterator = clients.iterator();
+    private void broadcastAll(Object obj) throws IOException {
+        for (var client : clients) {
+            client.out.writeObject(obj);
+            client.out.flush();
+            client.out.reset(); //reset cache bo zaszala zmiana w liscie scoreboard
+        }
+    }
 
-            if(queueNumber>clients.size()) queueNumber=1;
+    /**
+     * get a new word and grant drawing permission to next player
+     * @throws IOException when writeObject or flush fails
+     */
+    private void changeDrawer() throws IOException {
+        Iterator<ClientHandler> iterator = clients.iterator();
 
-            // take word
-            Random random = new Random();
-            secretWord = words[random.nextInt(words.length)];
+        if(queueNumber>clients.size()) queueNumber=1;
 
-            //compliePattern();
+        // get a word
+        Random random = new Random();
+        actualWord = words[random.nextInt(words.length)];
 
+        compliePattern();
 
-            int i=1;
-            while(iterator.hasNext()) {
-                Pair<ObjectOutputStream,String> setElement = iterator.next();
-                if(i==queueNumber) {
-                    ObjectOutputStream output = setElement.getFirst();
-                    broadcast(new Message("DRAWER","false,"+" "+","+time),output);
-                    output.writeObject(new Message("DRAWER","true,"+secretWord+","+time));
+        int i=1;
+
+        synchronized(clientsLock) {
+            while (iterator.hasNext()) {
+                ClientHandler setElement = iterator.next();
+                if (i == queueNumber) {
+                    ObjectOutputStream output = setElement.out;
+                    broadcast(new Message("DRAWER", "false," + " " + "," + time), output);
+                    output.writeObject(new Message("DRAWER", "true," + actualWord + "," + time));
                     output.flush();
                     queueNumber++;
-                    drawerName=setElement.getSecond();
+                    drawerName = setElement.name;
                     break;
                 }
                 i++;
             }
-
-            startTime = System.currentTimeMillis();
         }
 
+        startTime = System.currentTimeMillis(); // time when round start
+    }
+
+
+    public class ClientHandler implements Runnable{
+
+        private final Server server;
+        private final Socket clientSocket;
+
+        //streams
+        private final ObjectInputStream in;
+        private final ObjectOutputStream out;
+
+        //player
+        private String name;
+
+        //guess
+        private String response;
+        private Guess msgResponse;
+
+        //message
+        private String msg;
+        private String msgType;
+
+
+        private ClientHandler(Socket clientSocket, Server server) throws IOException {
+            this.clientSocket = clientSocket;
+            this.server = server;
+            this.out = new ObjectOutputStream(this.clientSocket.getOutputStream());
+            this.in = new ObjectInputStream(this.clientSocket.getInputStream());
+        }
+
+        /**
+         * remove this instance of ClientHandler from clients
+         */
         private void removePlayer(){
             if (out != null) {
-                Iterator<Pair<ObjectOutputStream,String>> iterator = clients.iterator();
+                Iterator<ClientHandler> iterator = clients.iterator();
 
-                while(iterator.hasNext()) {
-                    Pair<ObjectOutputStream,String> setElement = iterator.next();
-                    if(setElement.getFirst()==out) {
-                        iterator.remove();
-                        break;
+                synchronized(clientsLock) {
+                    while (iterator.hasNext()) {
+                        ClientHandler setElement = iterator.next();
+                        if (setElement.out == out) {
+                            iterator.remove();
+                            break;
+                        }
                     }
                 }
+            }
+        }
+
+        //TODO: dopiescic
+        private String checkGuess( String guess){
+            if(guess.equals(actualWord))
+                return "OK";
+            else {
+                return guess;
+            }
+        }
+
+        /**
+         * Send guess to all player, if its a good answer points are spread among players,
+         * scoreboard is updated and new drawer is chosen.
+         * In some cases additional message is sent
+         * @param guess player guess
+         * @throws IOException stream fails
+         */
+        private void guessMenagment(String guess) throws IOException {
+            synchronized(lock) { // each quess is separately checked  (not parallel)
+                response = checkGuess(guess);
+                msgResponse = new Guess(name + ": " + guess); // guess with player name
+                broadcast(msgResponse, out);
+
+                //points and scoreboard actualization
+                if (response.equals("OK")) {
+                    synchronized (scoreboardLock) {
+                        Iterator<Pair<String, Integer>> scoreboardIterator = scoreboard.iterator();
+                        while (scoreboardIterator.hasNext()) {
+                            Pair<String, Integer> element = scoreboardIterator.next();
+                            if (element.getFirst().equals(name)) { // the one who guessed
+                                int points = (int) (40 * (time - (System.currentTimeMillis() - startTime) / 1000) / time); // ((time-elapsed)/time) * points
+                                element.setSecond(element.getSecond() + points);
+                            } else if (element.getFirst().equals(drawerName)) { // the one who drawed
+                                int points = (int) (50 * (time - (System.currentTimeMillis() - startTime) / 1000) / time);
+                                element.setSecond(element.getSecond() + points);
+                            }
+                        }
+                    }
+
+
+                    // sorting, player with highest score is on top
+                    scoreboard.sort((Pair<String, Integer> ele1, Pair<String, Integer> ele2) -> ele2.getSecond() - ele1.getSecond());
+
+                    //broadcast updated scoreboard
+                    broadcastAll(scoreboard);
+
+                    broadcastAll(new Guess("BRAWO! : " + guess));
+                    changeDrawer();
+                }
+            }
+        }
+
+        private void messageMenagment(String msg,String msgType) throws IOException {
+            if(msgType.equals("NAME")){
+                scoreboard.add(new Pair<>(msg,0)); // synchronized call
+                name=msg;
+                broadcastAll(scoreboard);
+            }else if(msgType.equals("START")){ //game start || time over
+                changeDrawer();
             }
         }
 
         @Override
         public void run() {
             try {
-                System.out.println("nowy client!");
-                this.out = new ObjectOutputStream(socket.getOutputStream());
-                this.in = new ObjectInputStream(socket.getInputStream());
-
-                if(clients.isEmpty()){ //ustanowienie 1 klienta jako admina stolika
-                    clients.add(new Pair<>(out,""));
-                    out.writeObject(new Message("ADMIN","true"));
-                }else{
-                    clients.add(new Pair<>(out,""));
+                //first client is admin
+                synchronized(lock) {
+                    if(admin == null) {
+                        out.writeObject(new Message("ADMIN", "true"));
+                        admin = this;
+                    }
                 }
-
 
                 while (true) {
                     Object input = in.readObject();
 
                     if(input instanceof Guess){
                         String guess = ((Guess)input).getGuess();
-                        response = checkGuess(guess);
-                        msgResponse = new Guess(name+ ": " + guess); // guess with player name
-                        broadcast(msgResponse,out);
-
-                        if(response.equals("OK")) {
-
-                            synchronized (scoreboard) {
-                                Iterator<Pair<String, Integer>> scoreboardIterator = scoreboard.iterator();
-                                while (scoreboardIterator.hasNext()){
-                                    Pair<String,Integer> element = scoreboardIterator.next();
-                                    if(element.getFirst().equals(name)){ // ten co zgadl
-                                        int points = (int)(40*(time - (System.currentTimeMillis()-startTime)/1000)/time); // ((time-elapsed)/time) * points
-                                        element.setSecond(element.getSecond()+points);
-                                    }else if(element.getFirst().equals(drawerName)){ // ten co rysowal
-                                        int points = (int)(50*(time - (System.currentTimeMillis()-startTime)/1000)/time);
-                                        element.setSecond(element.getSecond()+points);
-                                    }
-                                }
-                            }
-
-
-                            // sortowanie zeby gracz z najwyzszym wynikiem byl u gory
-                            scoreboard.sort((Pair<String,Integer> ele1,Pair<String,Integer> ele2) -> ele2.getSecond()-ele1.getSecond());
-
-                            broadcastAll(scoreboard); //przeslanie zaktualizowanej tabeli
-
-
-                            changeDrawer();
-                            broadcastAll(new Guess("BRAWO! : " + guess));
-                        }
+                        guessMenagment(guess);
                     }
                     else if(input instanceof Point || input instanceof ColorRGB) {
                         broadcast(input,out);
-                    }else if(input instanceof Message){
-                        msgType=((Message)input).getMessageType();
+                    }
+                    else if(input instanceof Message){
                         msg=((Message)input).getMessage();
+                        msgType=((Message)input).getMessageType();
 
-                        if(msgType.equals("NAME")){
-                            scoreboard .add(new Pair<>(msg,0)); // synchronized call
-
-                            Iterator<Pair<ObjectOutputStream,String>> iterator = clients.iterator();
-
-                            while(iterator.hasNext()) {
-                                Pair<ObjectOutputStream,String> setElement = iterator.next();
-                                if(setElement.getFirst()==out) {
-                                    setElement.setSecond(msg);
-                                    name=msg;
-                                    break;
-                                }
-                            }
-
-                            Iterator<Pair<String,Integer>> iterators = scoreboard .iterator();
-
-                            while(iterators.hasNext()){
-                                Pair<String,Integer> ele = iterators.next();
-                                System.out.println(ele.getFirst());
-                            }
-
-                            broadcastAll(scoreboard);
-
-
-                        }else if(msgType.equals("START")){ //game start || time over
-                            changeDrawer();
-                        }else if(msgType.equals("EXIT")){
+                        if(msgType.equals("EXIT")){
                             break;
                         }
+
+                        messageMenagment(msg,msgType);
                     }
                 }
+
+                
             } catch (IOException | ClassNotFoundException e) {
-                System.out.println("BYE BYE ");
+                //e.printStackTrace();
             }finally {
                 removePlayer();
 
                 try {
-                    socket.close();
+                    clientSocket.close();
                 }
-                catch (IOException e) { }
+                catch (IOException e) {
+                    //TODO: cos tu dac?
+                }
             }
-
         }
     }
 }
