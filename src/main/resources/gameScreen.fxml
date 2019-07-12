@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ColorPicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.shape.Rectangle?>
+<?import javafx.scene.text.Font?>
+<?import javafx.scene.text.TextFlow?>
+
+<AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="433.0" prefWidth="586.0" xmlns="http://javafx.com/javafx/8.0.121" xmlns:fx="http://javafx.com/fxml/1" fx:controller="robertczarnik.client.Controller">
+   <children>
+      <Canvas fx:id="canvas" disable="true" height="369.0" layoutY="64.0" onMouseDragged="#onMouseDragged" onMousePressed="#onMousePressed" width="400.0" />
+      <Rectangle fill="#ffae00" height="88.0" layoutY="-24.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.0" width="563.0" />
+      <Rectangle fill="DODGERBLUE" height="441.0" layoutX="400.0" layoutY="-4.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.0" width="200.0" />
+      <ColorPicker fx:id="colorPicker" layoutX="333.0" layoutY="31.0" onAction="#onColorPicker" prefHeight="23.0" prefWidth="49.0" visible="false" />
+      <Label fx:id="sizeLabel" layoutX="302.0" layoutY="31.0" prefHeight="24.0" prefWidth="56.0" text="8" visible="false">
+         <font>
+            <Font name="Times New Roman" size="21.0" />
+         </font></Label>
+      <Label fx:id="keyWordLabel" layoutX="20.0" layoutY="26.0" text="Okoń" visible="false">
+         <font>
+            <Font name="Times New Roman Bold" size="20.0" />
+         </font>
+      </Label>
+      <Slider fx:id="slider" layoutX="295.0" layoutY="4.0" max="99.0" min="1.0" prefWidth="100.0" value="8.0" visible="false" />
+      <TextField fx:id="textField" disable="true" layoutX="413.0" layoutY="210.0" onAction="#onWordEnter" prefHeight="20.0" prefWidth="162.0" />
+      <ScrollPane fx:id="scrollPane" layoutX="416.0" layoutY="20.0" prefHeight="190.0" prefViewportHeight="148.0" prefViewportWidth="139.0" prefWidth="162.0" vvalue="1.0" AnchorPane.bottomAnchor="223.0" AnchorPane.leftAnchor="416.0" AnchorPane.rightAnchor="14.0" AnchorPane.topAnchor="20.0">
+         <content>
+
+            <TextFlow fx:id="textFlow" />
+
+
+         </content>
+      </ScrollPane>
+      <Button fx:id="start" layoutX="457.0" layoutY="387.0" mnemonicParsing="false" onAction="#onStart" text="START" visible="false">
+         <font>
+            <Font name="Verdana" size="16.0" />
+         </font>
+      </Button>
+      <ListView fx:id="listView" layoutX="420.0" layoutY="256.0" prefHeight="134.0" prefWidth="148.0" />
+      <Label fx:id="timer" layoutX="64.0" layoutY="4.0" />
+      <Label fx:id="tiktakLabel" layoutX="20.0" layoutY="4.0" text="tik-tak:" />
+   </children>
+</AnchorPane>

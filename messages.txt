@@ -1,0 +1,5 @@
+ADMIN "true" / "false"
+DRAWER "true,word,time"
+NAME "nameExample" //serv: para stream i name, client: scoreboard
+START ""
+EXIT ""
