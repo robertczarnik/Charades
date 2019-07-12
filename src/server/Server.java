@@ -1,7 +1,5 @@
 package server;
 
-// bug jedna osoba pod rzad 2 razy rysuje
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -9,6 +7,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import collections.Pair;
@@ -16,6 +15,8 @@ import objects.ColorRGB;
 import objects.Guess;
 import objects.Message;
 import objects.Point;
+
+
 
 public class Server {
     //locks
@@ -67,7 +68,11 @@ public class Server {
      * make proper regex and copile it to use it later
      */
     private void compliePattern(){
-        StringBuilder strBuilder= new StringBuilder();
+        String tmpActualString = actualWord;
+        tmpActualString = tmpActualString.toLowerCase();
+        //org.apache.commons.text.StringEscapeUtils
+
+        StringBuilder strBuilder = new StringBuilder();
         String [] words = actualWord.split(" ");
         for(String word : words){ // words under 3 letters - skip , words between 3-4 letters - match all, words above 4 letters - match first 3 letters
             if(word.length()>2){
@@ -95,7 +100,7 @@ public class Server {
         for (var client : clients) {
             client.out.writeObject(obj);
             client.out.flush();
-            client.out.reset(); //reset cache bo zaszala zmiana w liscie scoreboard
+            client.out.reset(); //reset cache because scoreboard was changed
         }
     }
 
@@ -132,12 +137,14 @@ public class Server {
             }
         }
 
-        startTime = System.currentTimeMillis(); // time when round start
+        startTime = System.currentTimeMillis(); // time when round starts
+        System.out.println(drawerName);
     }
 
 
     public class ClientHandler implements Runnable{
 
+        //references
         private final Server server;
         private final Socket clientSocket;
 
@@ -151,6 +158,7 @@ public class Server {
         //guess
         private String response;
         private Guess msgResponse;
+        private Matcher matcher;
 
         //message
         private String msg;
@@ -183,13 +191,21 @@ public class Server {
             }
         }
 
-        //TODO: dopiescic
+        /**
+         * guess comparison to actualWord and regex
+         * @param guess
+         * @return
+         */
         private String checkGuess( String guess){
             if(guess.equals(actualWord))
                 return "OK";
-            else {
-                return guess;
+            else{
+                matcher = pattern.matcher(guess);
+                if(matcher.matches()){
+                    return "CLOSE";
+                }
             }
+            return "";
         }
 
         /**
@@ -203,10 +219,12 @@ public class Server {
             synchronized(lock) { // each quess is separately checked  (not parallel)
                 response = checkGuess(guess);
                 msgResponse = new Guess(name + ": " + guess); // guess with player name
-                broadcast(msgResponse, out);
+                server.broadcast(msgResponse, out);
 
-                //points and scoreboard actualization
-                if (response.equals("OK")) {
+                if(response.equals("CLOSE")){ //close guess
+                    broadcastAll(new Guess("BLISKO! : " + guess));
+                }
+                else if (response.equals("OK")) { //points and scoreboard actualization
                     synchronized (scoreboardLock) {
                         Iterator<Pair<String, Integer>> scoreboardIterator = scoreboard.iterator();
                         while (scoreboardIterator.hasNext()) {
@@ -225,25 +243,34 @@ public class Server {
                     // sorting, player with highest score is on top
                     scoreboard.sort((Pair<String, Integer> ele1, Pair<String, Integer> ele2) -> ele2.getSecond() - ele1.getSecond());
 
-                    //broadcast updated scoreboard
+                    //server.broadcast updated scoreboard
                     broadcastAll(scoreboard);
 
                     broadcastAll(new Guess("BRAWO! : " + guess));
-                    changeDrawer();
+                    server.changeDrawer();
                 }
             }
         }
 
+        /**
+         * depending on msgType do some actions
+         * @param msg
+         * @param msgType
+         * @throws IOException stream fails
+         */
         private void messageMenagment(String msg,String msgType) throws IOException {
             if(msgType.equals("NAME")){
                 scoreboard.add(new Pair<>(msg,0)); // synchronized call
                 name=msg;
                 broadcastAll(scoreboard);
             }else if(msgType.equals("START")){ //game start || time over
-                changeDrawer();
+                server.changeDrawer();
             }
         }
 
+        /**
+         * main loop to get requests from clients and process them
+         */
         @Override
         public void run() {
             try {
@@ -263,7 +290,7 @@ public class Server {
                         guessMenagment(guess);
                     }
                     else if(input instanceof Point || input instanceof ColorRGB) {
-                        broadcast(input,out);
+                        server.broadcast(input,out);
                     }
                     else if(input instanceof Message){
                         msg=((Message)input).getMessage();

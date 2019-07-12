@@ -2,7 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Kalambury.iml" filepath="$PROJECT_DIR$/Kalambury.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/kalambury.iml" filepath="$PROJECT_DIR$/.idea/modules/kalambury.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/kalambury_main.iml" filepath="$PROJECT_DIR$/.idea/modules/kalambury_main.iml" group="kalambury" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/kalambury_test.iml" filepath="$PROJECT_DIR$/.idea/modules/kalambury_test.iml" group="kalambury" />
     </modules>
   </component>
 </project>
