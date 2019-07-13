@@ -15,7 +15,7 @@
 
 <AnchorPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="433.0" prefWidth="586.0" xmlns="http://javafx.com/javafx/8.0.121" xmlns:fx="http://javafx.com/fxml/1" fx:controller="robertczarnik.client.Controller">
    <children>
-      <Canvas fx:id="canvas" disable="true" height="369.0" layoutY="64.0" onMouseDragged="#onMouseDragged" onMousePressed="#onMousePressed" width="400.0" />
+      <Canvas fx:id="canvas" disable="true" height="369.0" layoutY="64.0" onMouseDragged="#onMouseDragged" onMousePressed="#onMousePressed" scaleX="2.0" width="400.0" />
       <Rectangle fill="#ffae00" height="88.0" layoutY="-24.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.0" width="563.0" />
       <Rectangle fill="DODGERBLUE" height="441.0" layoutX="400.0" layoutY="-4.0" stroke="BLACK" strokeType="INSIDE" strokeWidth="0.0" width="200.0" />
       <ColorPicker fx:id="colorPicker" layoutX="333.0" layoutY="31.0" onAction="#onColorPicker" prefHeight="23.0" prefWidth="49.0" visible="false" />

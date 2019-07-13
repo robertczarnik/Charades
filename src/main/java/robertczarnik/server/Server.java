@@ -45,7 +45,7 @@ public class Server {
     private ClientHandler admin;
 
     //round time
-    private final int time=10;
+    private final int time=15;
     private long startTime;
 
     public Server(ServerSocket serverSocket, int numberOfThreads){
@@ -140,7 +140,6 @@ public class Server {
         }
 
         startTime = System.currentTimeMillis(); // time when round starts
-        System.out.println(drawerName);
     }
 
 

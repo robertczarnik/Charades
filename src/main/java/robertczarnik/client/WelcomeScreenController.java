@@ -25,7 +25,7 @@ public class WelcomeScreenController {
     private void onPlayButton(ActionEvent event) throws IOException {
         Client client = new Client("localhost",5001);
 
-        FXMLLoader gameLoader = new FXMLLoader(getClass().getResource("/gameScreen.fxml"));
+        FXMLLoader gameLoader = new FXMLLoader(getClass().getResource("/resp.fxml"));
         Parent gameParent = gameLoader.load();
         Controller controller = gameLoader.getController();
 
@@ -37,6 +37,7 @@ public class WelcomeScreenController {
 
         Scene gameScene = new Scene(gameParent);
         Stage stage = (Stage)((Node)event.getSource()).getScene().getWindow();
+
 
         stage.setTitle("Kalambury");
         stage.setScene(gameScene);

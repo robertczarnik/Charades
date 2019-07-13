@@ -3,6 +3,11 @@ package robertczarnik.client;
 // server z stolikami i dolaczanie do nich
 
 
+import javafx.beans.binding.DoubleBinding;
+import javafx.scene.Node;
+import javafx.scene.layout.*;
+import javafx.scene.shape.Rectangle;
+import javafx.stage.Stage;
 import robertczarnik.collections.Pair;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -36,6 +41,15 @@ import java.util.List;
 
 public class Controller implements Runnable{
     @FXML
+    public Rectangle niebieski;
+
+    @FXML
+    public Rectangle pomarancza;
+
+    @FXML
+    public AnchorPane anchorPane;
+
+    @FXML
     private Canvas canvas;
 
     @FXML
@@ -68,6 +82,8 @@ public class Controller implements Runnable{
     @FXML
     private Label timer;
 
+    @FXML
+    public GridPane gridPane;
 
     private Timeline timeline;
     private IntegerProperty timeSeconds = new SimpleIntegerProperty();
@@ -94,6 +110,38 @@ public class Controller implements Runnable{
     private List<Pair<String,Integer>> scoreboard;
     private ObservableList<Pair<String,Integer>> players = FXCollections.observableArrayList();
 
+    //window size
+    private Stage stage;
+    private double actualH=500;
+    private double actualW=600;
+    private double scaleY=1;
+    private double scaleX=1;
+
+
+    @FXML
+    private void onMinus(){
+        if(stage==null) stage = (Stage) anchorPane.getScene().getWindow(); // get stage to change size later
+
+        if(actualH>500){
+            actualH-=250;
+            actualW-=300;
+            stage.setHeight(actualH);
+            stage.setWidth(actualW);
+        }
+    }
+
+    @FXML
+    private void onPlus(){
+        if(stage==null) stage = (Stage) anchorPane.getScene().getWindow(); // get stage to change size later
+
+        if(actualH<1500){
+            actualH+=250;
+            actualW+=300;
+            stage.setHeight(actualH);
+            stage.setWidth(actualW);
+        }
+    }
+
     @FXML
     private void onStart(){
         start.setVisible(false);
@@ -118,9 +166,15 @@ public class Controller implements Runnable{
 
     @FXML
     private void onMouseDragged(MouseEvent event){ // draw line between prev pos and actual pos
+        scaleY=anchorPane.getHeight()/500;
+        scaleX=anchorPane.getWidth()/600;
         if(drawPermission){
             x = event.getX();
             y = event.getY();
+
+            x/=scaleX;
+            y/=scaleY;
+
             drawLine(x,y);
 
             try {
@@ -133,9 +187,15 @@ public class Controller implements Runnable{
 
     @FXML
     private void onMousePressed(MouseEvent event) { // draw a oval point and set previous postions of x and y
+        scaleY=anchorPane.getHeight()/500;
+        scaleX=anchorPane.getWidth()/600;
         if(drawPermission) {
             prevPosX = event.getX();
             prevPosY = event.getY();
+
+            prevPosX/=scaleX;
+            prevPosY/=scaleY;
+
             drawPoint(prevPosX, prevPosY);
 
             try {
@@ -143,6 +203,9 @@ public class Controller implements Runnable{
             } catch (IOException e) {
                 e.printStackTrace();
             }
+
+            prevPosX*=scaleX;
+            prevPosY*=scaleY;
         }
     }
 
@@ -168,7 +231,6 @@ public class Controller implements Runnable{
         colorPicker.setValue(Color.BLACK);
         g = canvas.getGraphicsContext2D();
 
-
         listView.setItems(players);
 
         scrollPane.vvalueProperty().bind(textFlow.heightProperty()); //auto scroll down
@@ -177,6 +239,19 @@ public class Controller implements Runnable{
         slider.valueProperty().addListener(e -> size = (int)slider.getValue()); //change size variable when moving slider
 
         timer.textProperty().bind(timeSeconds.asString()); //bind timer label with countdown timer
+
+
+        //GRIDPANE
+        pomarancza.widthProperty().bind(gridPane.widthProperty());
+        pomarancza.heightProperty().bind(gridPane.heightProperty().multiply((10.0/100.0))); //15%
+
+        niebieski.heightProperty().bind(gridPane.heightProperty());
+        niebieski.widthProperty().bind(gridPane.widthProperty().multiply((25.0/100.0)));
+
+        canvas.heightProperty().bind(anchorPane.heightProperty().multiply(90.0/100.0));
+        canvas.widthProperty().bind(anchorPane.widthProperty().multiply(75.0/100.0));
+
+
     }
 
     public void initClient(Client client, String name) { //tylko raz mozna zainicjalizowac clienta
@@ -188,7 +263,12 @@ public class Controller implements Runnable{
         this.client = client ;
     }
 
+
+    //tutaj przemnozyc przez scale punkty x y
     private void drawLine(double x, double y){
+        x*=scaleX;
+        y*=scaleY;
+
         g.setStroke(color);
         g.setLineWidth(size);
         g.setLineCap(StrokeLineCap.ROUND);
@@ -198,8 +278,11 @@ public class Controller implements Runnable{
     }
 
     private void drawPoint(double x, double y){
-        x = x - size/2;
-        y = y - size/2;
+        x*=scaleX;
+        y*=scaleY;
+
+        x = x - size/2.0;
+        y = y - size/2.0;
 
         g.setFill(color);
         g.fillOval(x,y,size,size);
@@ -254,7 +337,6 @@ public class Controller implements Runnable{
         Object obj;
         Point point;
 
-
         //send player name to server
         try {
             client.getOut().writeObject(new Message("NAME",name));
@@ -270,16 +352,26 @@ public class Controller implements Runnable{
 
 
                 if(obj instanceof Point){
+                    scaleY=anchorPane.getHeight()/500;
+                    scaleX=anchorPane.getWidth()/600;
                     point = (Point)obj;
                     size=point.getSize();
 
+
+                    System.out.println(scaleX);
                     if(point.isSinglePoint()){
                         prevPosX=point.getX();
                         prevPosY=point.getY();
-                        drawPoint(prevPosX,prevPosY);
+                        prevPosX*=scaleX;
+                        prevPosY*=scaleY;
+
+                        drawPoint(point.getX(),point.getY());
                     }else{
                         x=point.getX();
                         y=point.getY();
+
+
+
                         drawLine(x,y);
                     }
                 }else if (obj instanceof ColorRGB){
