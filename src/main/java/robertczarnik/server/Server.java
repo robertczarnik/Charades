@@ -45,7 +45,7 @@ public class Server {
     private ClientHandler admin;
 
     //round time
-    private final int time=15;
+    private final int time=100;
     private long startTime;
 
     public Server(ServerSocket serverSocket, int numberOfThreads){
