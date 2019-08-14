@@ -1,10 +1,6 @@
 package robertczarnik.client;
 
-// server z stolikami i dolaczanie do nich
 
-
-import javafx.beans.binding.DoubleBinding;
-import javafx.scene.Node;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.Stage;
@@ -33,7 +29,6 @@ import robertczarnik.objects.ColorRGB;
 import robertczarnik.objects.Guess;
 import robertczarnik.objects.Message;
 import robertczarnik.objects.Point;
-import robertczarnik.client.Client;
 
 import java.io.IOException;
 import java.util.List;
@@ -41,10 +36,10 @@ import java.util.List;
 
 public class Controller implements Runnable{
     @FXML
-    public Rectangle niebieski;
+    private Rectangle niebieski;
 
     @FXML
-    public Rectangle pomarancza;
+    private Rectangle pomarancza;
 
     @FXML
     public AnchorPane anchorPane;
@@ -83,7 +78,10 @@ public class Controller implements Runnable{
     private Label timer;
 
     @FXML
-    public GridPane gridPane;
+    private GridPane gridPane;
+
+    @FXML
+    private Label clear;
 
     private Timeline timeline;
     private IntegerProperty timeSeconds = new SimpleIntegerProperty();
@@ -101,6 +99,7 @@ public class Controller implements Runnable{
     //---
 
     private boolean admin = false;
+    private boolean gamestarted = false;
     private Message msg;
     private String guess;
     private String name;
@@ -110,35 +109,42 @@ public class Controller implements Runnable{
     private List<Pair<String,Integer>> scoreboard;
     private ObservableList<Pair<String,Integer>> players = FXCollections.observableArrayList();
 
-    //window size
+    //---Window size---
     private Stage stage;
-    private double actualH=500;
-    private double actualW=600;
+    private double baseHeight=500;
+    private double baseWidth=600;
     private double scaleY=1;
     private double scaleX=1;
+    //---
 
+    @FXML
+    private void onClear(){
+        g.clearRect(0,0,canvas.getWidth(),canvas.getHeight());
+
+        try {
+            client.getOut().writeObject(new Message("CLEAR","")); //clear canvas
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     @FXML
     private void onMinus(){
-        if(stage==null) stage = (Stage) anchorPane.getScene().getWindow(); // get stage to change size later
-
-        if(actualH>500){
-            actualH-=250;
-            actualW-=300;
-            stage.setHeight(actualH);
-            stage.setWidth(actualW);
+        if(baseHeight>500){
+            baseHeight-=250;
+            baseWidth-=300;
+            stage.setHeight(baseHeight);
+            stage.setWidth(baseWidth);
         }
     }
 
     @FXML
     private void onPlus(){
-        if(stage==null) stage = (Stage) anchorPane.getScene().getWindow(); // get stage to change size later
-
-        if(actualH<1500){
-            actualH+=250;
-            actualW+=300;
-            stage.setHeight(actualH);
-            stage.setWidth(actualW);
+        if(baseHeight<1500){
+            baseHeight+=250;
+            baseWidth+=300;
+            stage.setHeight(baseHeight);
+            stage.setWidth(baseWidth);
         }
     }
 
@@ -228,6 +234,7 @@ public class Controller implements Runnable{
     }
 
     public void initialize(){
+
         colorPicker.setValue(Color.BLACK);
         g = canvas.getGraphicsContext2D();
 
@@ -263,8 +270,6 @@ public class Controller implements Runnable{
         this.client = client ;
     }
 
-
-    //tutaj przemnozyc przez scale punkty x y
     private void drawLine(double x, double y){
         x*=scaleX;
         y*=scaleY;
@@ -316,7 +321,9 @@ public class Controller implements Runnable{
         return (T) obj;
     }
 
-    /** setting visibility of components and resetting size, color and canvas */
+    /**
+     * setting visibility of components and resetting size, color and canvas
+     * */
     private void setProperties(boolean drawPermission){
         sizeLabel.setVisible(drawPermission);
         keyWordLabel.setVisible(drawPermission);
@@ -324,6 +331,7 @@ public class Controller implements Runnable{
         colorPicker.setVisible(drawPermission);
         textField.setDisable(drawPermission);
         canvas.setDisable(!drawPermission);
+        clear.setVisible(drawPermission);
 
         g.clearRect(0,0,canvas.getWidth(),canvas.getHeight());
         size = 8;
@@ -336,6 +344,8 @@ public class Controller implements Runnable{
     public void run() {
         Object obj;
         Point point;
+
+        Platform.runLater(() -> stage = (Stage) anchorPane.getScene().getWindow()); // get stage to change size later
 
         //send player name to server
         try {
@@ -358,7 +368,6 @@ public class Controller implements Runnable{
                     size=point.getSize();
 
 
-                    System.out.println(scaleX);
                     if(point.isSinglePoint()){
                         prevPosX=point.getX();
                         prevPosY=point.getY();
@@ -370,8 +379,6 @@ public class Controller implements Runnable{
                         x=point.getX();
                         y=point.getY();
 
-
-
                         drawLine(x,y);
                     }
                 }else if (obj instanceof ColorRGB){
@@ -380,8 +387,11 @@ public class Controller implements Runnable{
                     msg = (Message)obj;
 
                     if(msg.getMessageType().equals("ADMIN")){
-                        admin=Boolean.parseBoolean(msg.getMessage());
-                        if(admin){
+                        String [] tab = msg.getMessage().split(",");
+                        admin=Boolean.parseBoolean(tab[0]);
+                        gamestarted=Boolean.parseBoolean(tab[1]);
+
+                        if(admin && !gamestarted){
                             start.setVisible(true);
                         }
                     }else if(msg.getMessageType().equals("DRAWER")){
@@ -396,6 +406,8 @@ public class Controller implements Runnable{
                             roundStart(time,word);
                             setProperties(finalDrawPermission);
                         });
+                    }else if(msg.getMessageType().equals("CLEAR")){
+                        Platform.runLater(() ->  g.clearRect(0,0,canvas.getWidth(),canvas.getHeight()));
                     }
                 } else if(obj instanceof Guess){
                     guess = ((Guess)obj).getGuess();
@@ -415,11 +427,8 @@ public class Controller implements Runnable{
                     Platform.runLater(() -> players.setAll(scoreboard));
                 }
 
-
-
             } catch(IOException | ClassNotFoundException e) {
                 //e.printStackTrace();
-                //System.out.println("BYE");
             }
         }
     }
