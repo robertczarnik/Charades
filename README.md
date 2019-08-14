@@ -14,7 +14,7 @@ Guesser             |  Drawer
 After cloning this repository, change into the newly created directory and run
 
 ```
-./gradlew build
+gradlew build
 ```
 
 ## Running the Application (locally)
