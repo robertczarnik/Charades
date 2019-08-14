@@ -9,8 +9,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextField;
 import javafx.stage.Stage;
-import robertczarnik.client.Client;
-import robertczarnik.client.Controller;
 
 import java.io.IOException;
 
@@ -25,7 +23,7 @@ public class WelcomeScreenController {
     private void onPlayButton(ActionEvent event) throws IOException {
         Client client = new Client("localhost",5001);
 
-        FXMLLoader gameLoader = new FXMLLoader(getClass().getResource("/resp.fxml"));
+        FXMLLoader gameLoader = new FXMLLoader(getClass().getResource("/gameScreen.fxml"));
         Parent gameParent = gameLoader.load();
         Controller controller = gameLoader.getController();
 
@@ -41,6 +39,7 @@ public class WelcomeScreenController {
 
         stage.setTitle("Kalambury");
         stage.setScene(gameScene);
+        stage.setResizable(false);
         stage.show();
 
         stage.setOnCloseRequest(we -> client.closeConnection());
