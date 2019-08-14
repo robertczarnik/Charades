@@ -1,5 +1,6 @@
-ADMIN "true" / "false"
+ADMIN "true,true" // admin,gameStarted
 DRAWER "true,word,time"
-NAME "nameExample" //serv: para stream i name, client: scoreboard
+NAME "nameExample" //serv: pair stream and name, client: scoreboard
+CLEAR ""
 START ""
 EXIT ""
