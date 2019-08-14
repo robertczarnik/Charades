@@ -18,7 +18,6 @@ import robertczarnik.objects.Message;
 import robertczarnik.objects.Point;
 
 
-
 public class Server {
     //locks
     private final Object clientsLock = new Object();
@@ -34,11 +33,12 @@ public class Server {
     private List<Pair<String,Integer>> scoreboard = Collections.synchronizedList(new ArrayList<>());
 
     //game variables
-    private String[] words = {"Kot w butach","Świstak w polu"};
+    private Words words = new Words();
     private String actualWord;
     private String actualWordNormalized;
     private Pattern pattern;
     private int queueNumber=1;
+    private boolean gamestarted=false;
 
     //actual important roles
     private String drawerName;
@@ -116,8 +116,7 @@ public class Server {
         if(queueNumber>clients.size()) queueNumber=1;
 
         // get a word
-        Random random = new Random();
-        actualWord = words[random.nextInt(words.length)];
+        actualWord = words.getRandomWord();
 
         compliePattern();
 
@@ -174,10 +173,21 @@ public class Server {
         }
 
         /**
-         * remove this instance of ClientHandler from clients
+         * remove this instance of ClientHandler from clients and scoreboard
          */
-        private void removePlayer(){
+        private void removePlayer() throws IOException {
             if (out != null) {
+                Iterator<Pair<String,Integer>> iteratorScoreboard = scoreboard.iterator();
+                synchronized(scoreboardLock){
+                    while(iteratorScoreboard.hasNext()){
+                        Pair<String,Integer> setElement = iteratorScoreboard.next();
+                        if(setElement.getFirst().equals(name)){
+                            iteratorScoreboard .remove();
+                            break;
+                        }
+                    }
+                }
+
                 Iterator<ClientHandler> iterator = clients.iterator();
 
                 synchronized(clientsLock) {
@@ -185,11 +195,27 @@ public class Server {
                         ClientHandler setElement = iterator.next();
                         if (setElement.out == out) {
                             iterator.remove();
+                            changeDrawer();
+
+                            if(setElement==admin){
+                                if(iterator.hasNext()) {
+                                    admin=iterator.next();
+                                    admin.out.writeObject(new Message("ADMIN","true,"+gamestarted));
+                                }
+                                else {
+                                    admin=null;
+                                    gamestarted=false;
+                                }
+                            }
+
                             break;
                         }
                     }
                 }
+
+                broadcastAll(scoreboard);
             }
+
         }
 
         /**
@@ -267,6 +293,7 @@ public class Server {
                 name=msg;
                 broadcastAll(scoreboard);
             }else if(msgType.equals("START")){ //game start || time over
+                gamestarted=true;
                 server.changeDrawer();
             }
         }
@@ -280,7 +307,7 @@ public class Server {
                 //first client is admin
                 synchronized(lock) {
                     if(admin == null) {
-                        out.writeObject(new Message("ADMIN", "true"));
+                        out.writeObject(new Message("ADMIN", "true,"+gamestarted));
                         admin = this;
                     }
                 }
@@ -299,7 +326,11 @@ public class Server {
                         msg=((Message)input).getMessage();
                         msgType=((Message)input).getMessageType();
 
-                        if(msgType.equals("EXIT")){
+                        if(msgType.equals("CLEAR")){
+                            broadcast(input,out);
+                            continue;
+                        }
+                        else if(msgType.equals("EXIT")){
                             break;
                         }
 
@@ -309,15 +340,14 @@ public class Server {
 
                 
             } catch (IOException | ClassNotFoundException e) {
-                //e.printStackTrace();
-            }finally {
-                removePlayer();
 
+            }finally {
                 try {
+                    removePlayer();
                     clientSocket.close();
                 }
                 catch (IOException e) {
-                    //TODO: cos tu dac?
+
                 }
             }
         }
